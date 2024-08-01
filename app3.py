@@ -3,24 +3,17 @@ import os
 from openai import OpenAI
 from dotenv import load_dotenv
 import base64
-from streamlit_webrtc import webrtc_streamer, AudioProcessorBase, WebRtcMode, ClientSettings
-import av
-import numpy as np
-import logging
+from audio_recorder_streamlit import audio_recorder
 
-# Set up logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
-
-# Load environment variables
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
+
 client = OpenAI(api_key=api_key)
 
-def get_answer(messages, custom_prompt, language):
+def get_answer(messages, custom_prompt):
     system_message = [{
         "role": "system", 
-        "content": f"Respond in {language}."
+        "content": custom_prompt
     }]
     messages = system_message + messages
     response = client.chat.completions.create(
@@ -29,7 +22,7 @@ def get_answer(messages, custom_prompt, language):
         timeout=5,
         messages=messages
     )
-    return response.choices[0].message['content']
+    return response.choices[0].message.content
 
 def speech_to_text(audio_data):
     with open(audio_data, "rb") as audio_file:
@@ -46,14 +39,9 @@ def text_to_speech(input_text, voice):
         voice=voice,
         input=input_text
     )
-    logger.debug(f"Text-to-Speech response: {response}")
-
-    # Read the binary content from the response
-    audio_content = response.read()
-    
     webm_file_path = "temp_audio_play.mp3"
     with open(webm_file_path, "wb") as f:
-        f.write(audio_content)
+        response.stream_to_file(webm_file_path)
     return webm_file_path
 
 def autoplay_audio(file_path: str):
@@ -67,16 +55,6 @@ def autoplay_audio(file_path: str):
     """
     st.markdown(md, unsafe_allow_html=True)
 
-class AudioProcessor(AudioProcessorBase):
-    def __init__(self):
-        self.audio_data = None
-
-    def recv_audio(self, frame: av.AudioFrame) -> av.AudioFrame:
-        audio = frame.to_ndarray()
-        self.audio_data = audio
-        logger.debug(f"Received audio frame: {audio.shape}")
-        return frame
-
 # Streamlit interface
 st.title("Reactive Space Agent")
 
@@ -85,11 +63,8 @@ if "messages" not in st.session_state:
 
 # Add inputs for initial message, voice selection, and custom prompt
 initial_message = st.text_input("Initial Message", value="How can I help you?")
-voice = st.selectbox("Select Voice", ["onyx", "echo", "alloy", "fable", "shimmer", "nova"])
-language = st.selectbox("Select Language", ["English", "Spanish", "French", "German", "Chinese"])
-
-# Default custom prompt without the language selection visible to the user
-default_custom_prompt = """Hey {Lead Name}, this is Basit Ali calling, How are you doing today? I am good, thanks for asking....... so {lead name} the purpose of my call is in response to your recent FB Ads inquiry where you were seeking further information surrounding MetaVerse services…
+voice = st.selectbox("Select Voice", ["onyx", "echo", "alloy", "fable","shimmer","nova"])
+custom_prompt = st.text_area("Custom Prompt", value="""you can only respond in English. Hey {Lead Name}, this is Basit Ali calling, How are you doing today? I am good, thanks for asking....... so {lead name} the purpose of my call is in response to your recent FB Ads inquiry where you were seeking further information surrounding MetaVerse services…
 Do you remember booking the appointment?
 yes : Move on
 No: Remind them that they clicked on a FB advertisement and provided their information as they were interested in Metaverse and how it could help them.
@@ -106,18 +81,13 @@ If you were to set a goal or return you would like to achieve from investing in 
 Response 2:
 Note: Confirm the value back to them, example I want to sell 10 products at 10k per product over the next 12 months. This means they want to achieve 100k in sales over the first year.
 Rebuttal to question 2:
-It’s really important we have an understanding of your goals so we can help design the right solution to help you achieve that goal, so is there a revenue goal you have?"""
-
-custom_prompt = st.text_area("Custom Prompt", value=default_custom_prompt)
+It’s really important we have an understanding of your goals so we can help design the right solution to help you achieve that goal, so is there a revenue goal you have?""")
 
 # Add a "Call" button
 if st.button("Call"):
-    try:
-        initial_audio_path = text_to_speech(initial_message, voice)
-        st.session_state.initial_audio_path = initial_audio_path
-        st.session_state.messages.append({"role": "assistant", "content": initial_message})
-    except Exception as e:
-        st.error(f"Error generating speech: {e}")
+    initial_audio_path = text_to_speech(initial_message, voice)
+    st.session_state.initial_audio_path = initial_audio_path
+    st.session_state.messages.append({"role": "assistant", "content": initial_message})
 
 # Play the initial greeting audio if it exists
 if "initial_audio_path" in st.session_state and st.session_state.initial_audio_path:
@@ -125,34 +95,15 @@ if "initial_audio_path" in st.session_state and st.session_state.initial_audio_p
     os.remove(st.session_state.initial_audio_path)
     del st.session_state.initial_audio_path
 
-footer_container = st.container()
-
 # Display previous messages
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-# WebRTC Streamer
-webrtc_ctx = webrtc_streamer(
-    key="audio",
-    mode=WebRtcMode.SENDRECV,
-    client_settings=ClientSettings(
-        media_stream_constraints={
-            "audio": True,
-            "video": False
-        },
-        rtc_configuration={
-            "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
-        }
-    ),
-    audio_processor_factory=AudioProcessor
-)
-
-if webrtc_ctx.state.playing:
-    audio_processor = webrtc_ctx.audio_processor
-    if audio_processor and audio_processor.audio_data is not None:
-        audio_bytes = audio_processor.audio_data.tobytes()
-        webm_file_path = "temp_audio.webm"
+audio_bytes = audio_recorder()
+if audio_bytes:
+    with st.spinner("Transcribing..."):
+        webm_file_path = "temp_audio.mp3"
         with open(webm_file_path, "wb") as f:
             f.write(audio_bytes)
         transcript = speech_to_text(webm_file_path)
@@ -165,16 +116,16 @@ if webrtc_ctx.state.playing:
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     with st.chat_message("assistant"):
         with st.spinner("Thinking🤔..."):
-            final_response = get_answer(st.session_state.messages, custom_prompt, language)
+            final_response = get_answer(st.session_state.messages, custom_prompt)
         with st.spinner("Generating audio response..."):
             audio_file = text_to_speech(final_response, voice)
             autoplay_audio(audio_file)
         st.write(final_response)
         st.session_state.messages.append({"role": "assistant", "content": final_response})
-        os.remove(audio_file)
 
-# Float the footer container at the bottom of the page
-footer_container.float("bottom: 0rem;")
+# Footer
+footer_text = "Reactive Space Agent © 2024"
+st.markdown(f"<div style='position:fixed;bottom:0;width:100%;text-align:center;'>{footer_text}</div>", unsafe_allow_html=True)
 
 
 
