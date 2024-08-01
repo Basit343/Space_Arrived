@@ -17,7 +17,7 @@ def get_answer(messages, custom_prompt, language):
         "role": "system", 
         "content": f"Respond in {language}."
     }]
-    messages = system_message + messages
+    messages are system_message + messages
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         temperature=0.7,
@@ -43,7 +43,7 @@ def text_to_speech(input_text, voice):
     )
     webm_file_path = "temp_audio_play.mp3"
     with open(webm_file_path, "wb") as f:
-        f.write(response)
+        f.write(response['audio_content'])
     return webm_file_path
 
 def autoplay_audio(file_path: str):
@@ -161,6 +161,14 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
 
 # Float the footer container at the bottom of the page
 footer_container.float("bottom: 0rem;")
+
+
+
+
+
+
+
+
 # __________________________________________________________________________________________
 
 # import streamlit as st
