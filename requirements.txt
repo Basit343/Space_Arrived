@@ -5,3 +5,5 @@ audio-recorder-streamlit
 streamlit-float
 gtts
 streamlit-webrtc
+av
+numpy
