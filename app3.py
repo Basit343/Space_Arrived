@@ -1,49 +1,42 @@
 import streamlit as st
-import os
-from openai import OpenAI
+import openai
 from dotenv import load_dotenv
+import os
 import base64
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import float_init
 
+# Load environment variables
 load_dotenv()
-api_key = "enteryour key"
+api_key = st.secrets["OPENAI_API_KEY"]
 
-client = OpenAI(api_key=api_key)
+# Configure OpenAI
+openai.api_key = api_key
 
-def get_answer(messages, custom_prompt):
-    system_message = [{
+def get_answer(messages, custom_prompt, language):
+    system_message = {
         "role": "system", 
-        "content": custom_prompt
-    }]
-    messages = system_message + messages
-    response = client.chat.completions.create(
+        "content": f"Respond in {language}. {custom_prompt}"
+    }
+    messages = [system_message] + messages
+    response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         temperature=0.7,
-        timeout=5,
         messages=messages
     )
-    return response.choices[0].message.content
+    return response.choices[0].message['content']
 
 def speech_to_text(audio_data):
     with open(audio_data, "rb") as audio_file:
-        transcript = client.audio.transcriptions.create(
+        transcript = openai.Audio.transcribe(
             model="whisper-1",
-            response_format="text",
             file=audio_file
         )
-    return transcript
+    return transcript['text']
 
 def text_to_speech(input_text, voice):
-    response = client.audio.speech.create(
-        model="tts-1",
-        voice=voice,
-        input=input_text
-    )
-    webm_file_path = "temp_audio_play.mp3"
-    with open(webm_file_path, "wb") as f:
-        response.stream_to_file(webm_file_path)
-    return webm_file_path
+    # Placeholder for text-to-speech implementation
+    return "temp_audio_play.mp3"
 
 def autoplay_audio(file_path: str):
     with open(file_path, "rb") as f:
@@ -63,10 +56,8 @@ st.title("Reactive Space Agent")
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Add inputs for initial message, voice selection, and custom prompt
-initial_message = st.text_input("Initial Message", value="How can I help you?")
-voice = st.selectbox("Select Voice", ["onyx", "echo", "alloy", "fable","shimmer","nova"])
-custom_prompt = st.text_area("Custom Prompt", value="""you can only respond in English. Hey {Lead Name}, this is Basit Ali calling, How are you doing today? I am good, thanks for asking....... so {lead name} the purpose of my call is in response to your recent FB Ads inquiry where you were seeking further information surrounding MetaVerse services…
+# Default custom prompt
+default_custom_prompt = """Hey {Lead Name}, this is Basit Ali calling, How are you doing today? I am good, thanks for asking....... so {lead name} the purpose of my call is in response to your recent FB Ads inquiry where you were seeking further information surrounding MetaVerse services…
 Do you remember booking the appointment?
 yes : Move on
 No: Remind them that they clicked on a FB advertisement and provided their information as they were interested in Metaverse and how it could help them.
@@ -83,13 +74,47 @@ If you were to set a goal or return you would like to achieve from investing in 
 Response 2:
 Note: Confirm the value back to them, example I want to sell 10 products at 10k per product over the next 12 months. This means they want to achieve 100k in sales over the first year.
 Rebuttal to question 2:
-It’s really important we have an understanding of your goals so we can help design the right solution to help you achieve that goal, so is there a revenue goal you have?""")
+It’s really important we have an understanding of your goals so we can help design the right solution to help you achieve that goal, so is there a revenue goal you have?"""
 
-# Add a "Call" button
-if st.button("Call"):
-    initial_audio_path = text_to_speech(initial_message, voice)
+# Horizontal layout for initial message, voice, and language selection
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    initial_message = st.text_input("Initial Message", value="How can I help you?")
+
+with col2:
+    voice = st.selectbox("Select Voice", ["onyx", "echo", "alloy", "fable","shimmer","nova"])
+
+with col3:
+    language = st.selectbox("Select Language", ["English", "Spanish", "French", "German", "Chinese"])
+
+# Custom prompt input
+custom_prompt = st.text_area("Custom Prompt", value=default_custom_prompt)
+
+# Add an "Apply" button
+if st.button("Apply"):
+    st.session_state.initial_message = initial_message
+    st.session_state.voice = voice
+    st.session_state.language = language
+    st.session_state.custom_prompt = custom_prompt
+    st.session_state.show_call_button = True
+
+# Show the "Call" button if "Apply" has been clicked
+call_button = False
+if st.session_state.get("show_call_button"):
+    call_button = st.button("Call")
+
+# Call button independent of Apply button to test default system
+if call_button or (st.button("Call Default") and not st.session_state.get("show_call_button")):
+    initial_audio_path = text_to_speech(
+        st.session_state.get("initial_message", "How can I help you?"),
+        st.session_state.get("voice", "onyx")
+    )
     st.session_state.initial_audio_path = initial_audio_path
-    st.session_state.messages.append({"role": "assistant", "content": initial_message})
+    st.session_state.messages.append({
+        "role": "assistant", 
+        "content": st.session_state.get("initial_message", "How can I help you?")
+    })
 
 # Play the initial greeting audio if it exists
 if "initial_audio_path" in st.session_state and st.session_state.initial_audio_path:
@@ -120,9 +145,13 @@ if audio_bytes:
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     with st.chat_message("assistant"):
         with st.spinner("Thinking🤔..."):
-            final_response = get_answer(st.session_state.messages, custom_prompt)
+            final_response = get_answer(
+                st.session_state.messages,
+                st.session_state.get("custom_prompt", default_custom_prompt),
+                st.session_state.get("language", "English")
+            )
         with st.spinner("Generating audio response..."):
-            audio_file = text_to_speech(final_response, voice)
+            audio_file = text_to_speech(final_response, st.session_state.get("voice", "onyx"))
             autoplay_audio(audio_file)
         st.write(final_response)
         st.session_state.messages.append({"role": "assistant", "content": final_response})
@@ -130,5 +159,3 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
 
 # Float the footer container at the bottom of the page
 footer_container.float("bottom: 0rem;")
-
-
