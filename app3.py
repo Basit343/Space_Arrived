@@ -5,6 +5,7 @@ import os
 import base64
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import float_init
+from gtts import gTTS  # Import gTTS for text-to-speech
 
 # Load environment variables
 load_dotenv()
@@ -35,19 +36,25 @@ def speech_to_text(audio_data):
     return transcript['text']
 
 def text_to_speech(input_text, voice):
-    # Placeholder for text-to-speech implementation
-    return "temp_audio_play.mp3"
+    tts = gTTS(text=input_text, lang='en')
+    file_path = "temp_audio.mp3"
+    tts.save(file_path)
+    return file_path
 
 def autoplay_audio(file_path: str):
-    with open(file_path, "rb") as f:
-        data = f.read()
-    b64 = base64.b64encode(data).decode("utf-8")
-    md = f"""
-    <audio autoplay>
-    <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
-    </audio>
-    """
-    st.markdown(md, unsafe_allow_html=True)
+    if os.path.exists(file_path):
+        with open(file_path, "rb") as f:
+            data = f.read()
+        b64 = base64.b64encode(data).decode("utf-8")
+        md = f"""
+        <audio autoplay>
+        <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+        </audio>
+        """
+        st.markdown(md, unsafe_allow_html=True)
+        os.remove(file_path)
+    else:
+        st.error("File not found for autoplay.")
 
 # Streamlit interface
 float_init()
@@ -87,7 +94,6 @@ if st.button("Call"):
 # Play the initial greeting audio if it exists
 if "initial_audio_path" in st.session_state and st.session_state.initial_audio_path:
     autoplay_audio(st.session_state.initial_audio_path)
-    os.remove(st.session_state.initial_audio_path)
     del st.session_state.initial_audio_path
 
 footer_container = st.container()
@@ -119,7 +125,6 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
             autoplay_audio(audio_file)
         st.write(final_response)
         st.session_state.messages.append({"role": "assistant", "content": final_response})
-        os.remove(audio_file)
 
 # Float the footer container at the bottom of the page
 footer_container.float("bottom: 0rem;")
