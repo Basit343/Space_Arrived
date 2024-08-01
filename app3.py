@@ -8,7 +8,7 @@ import av
 import numpy as np
 
 load_dotenv()
-api_key = os.getenv("OPENAI_API_KEY") 
+api_key = os.getenv("OPENAI_API_KEY")
 
 client = OpenAI(api_key=api_key)
 
@@ -17,7 +17,7 @@ def get_answer(messages, custom_prompt, language):
         "role": "system", 
         "content": f"Respond in {language}."
     }]
-    messages are system_message + messages
+    messages = system_message + messages
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         temperature=0.7,
