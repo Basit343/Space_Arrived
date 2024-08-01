@@ -6,7 +6,13 @@ import base64
 from streamlit_webrtc import webrtc_streamer, AudioProcessorBase, WebRtcMode, ClientSettings
 import av
 import numpy as np
+import logging
 
+# Set up logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
+
+# Load environment variables
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
 
@@ -41,9 +47,13 @@ def text_to_speech(input_text, voice):
         voice=voice,
         input=input_text
     )
+    logger.debug(f"Text-to-Speech response: {response}")
+    
+    # Ensure we are correctly accessing the audio content
+    audio_content = response['data']
     webm_file_path = "temp_audio_play.mp3"
     with open(webm_file_path, "wb") as f:
-        f.write(response['audio_content'])
+        f.write(audio_content)
     return webm_file_path
 
 def autoplay_audio(file_path: str):
@@ -64,6 +74,7 @@ class AudioProcessor(AudioProcessorBase):
     def recv_audio(self, frame: av.AudioFrame) -> av.AudioFrame:
         audio = frame.to_ndarray()
         self.audio_data = audio
+        logger.debug(f"Received audio frame: {audio.shape}")
         return frame
 
 # Streamlit interface
@@ -161,7 +172,6 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
 
 # Float the footer container at the bottom of the page
 footer_container.float("bottom: 0rem;")
-
 
 
 
