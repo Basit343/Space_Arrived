@@ -8,7 +8,7 @@ import av
 import numpy as np
 
 load_dotenv()
-api_key = st.secrets["OPENAI_API_KEY"]
+api_key = os.getenv("OPENAI_API_KEY") 
 
 client = OpenAI(api_key=api_key)
 
@@ -24,7 +24,7 @@ def get_answer(messages, custom_prompt, language):
         timeout=5,
         messages=messages
     )
-    return response.choices[0].message.content
+    return response.choices[0].message['content']
 
 def speech_to_text(audio_data):
     with open(audio_data, "rb") as audio_file:
@@ -43,7 +43,7 @@ def text_to_speech(input_text, voice):
     )
     webm_file_path = "temp_audio_play.mp3"
     with open(webm_file_path, "wb") as f:
-        response.stream_to_file(webm_file_path)
+        f.write(response)
     return webm_file_path
 
 def autoplay_audio(file_path: str):
@@ -62,7 +62,8 @@ class AudioProcessor(AudioProcessorBase):
         self.audio_data = None
 
     def recv_audio(self, frame: av.AudioFrame) -> av.AudioFrame:
-        self.audio_data = frame.to_ndarray()
+        audio = frame.to_ndarray()
+        self.audio_data = audio
         return frame
 
 # Streamlit interface
@@ -73,7 +74,7 @@ if "messages" not in st.session_state:
 
 # Add inputs for initial message, voice selection, and custom prompt
 initial_message = st.text_input("Initial Message", value="How can I help you?")
-voice = st.selectbox("Select Voice", ["onyx", "echo", "alloy", "fable","shimmer","nova"])
+voice = st.selectbox("Select Voice", ["onyx", "echo", "alloy", "fable", "shimmer", "nova"])
 language = st.selectbox("Select Language", ["English", "Spanish", "French", "German", "Chinese"])
 
 # Default custom prompt without the language selection visible to the user
@@ -160,7 +161,7 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
 
 # Float the footer container at the bottom of the page
 footer_container.float("bottom: 0rem;")
-
+# __________________________________________________________________________________________
 
 # import streamlit as st
 # import openai
