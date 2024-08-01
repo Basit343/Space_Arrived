@@ -48,9 +48,9 @@ def text_to_speech(input_text, voice):
         input=input_text
     )
     logger.debug(f"Text-to-Speech response: {response}")
-    
+
     # Ensure we are correctly accessing the audio content
-    audio_content = response['data']
+    audio_content = response['data']  # Change this line based on the actual response structure
     webm_file_path = "temp_audio_play.mp3"
     with open(webm_file_path, "wb") as f:
         f.write(audio_content)
