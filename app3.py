@@ -15,7 +15,6 @@ logging.basicConfig(level=logging.DEBUG)
 # Load environment variables
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
-
 client = OpenAI(api_key=api_key)
 
 def get_answer(messages, custom_prompt, language):
@@ -49,17 +48,9 @@ def text_to_speech(input_text, voice):
     )
     logger.debug(f"Text-to-Speech response: {response}")
 
-    # Log the entire response to understand its structure
-    st.write(f"Full response: {response}")
-
-    # Attempt to access the audio content correctly
-    try:
-        audio_content = response['audio_content']  # Adjust based on actual response
-    except KeyError:
-        st.error("Audio content not found in the response. Please check the response structure.")
-        logger.error(f"Audio content not found in response: {response}")
-        raise
-
+    # Read the binary content from the response
+    audio_content = response.read()
+    
     webm_file_path = "temp_audio_play.mp3"
     with open(webm_file_path, "wb") as f:
         f.write(audio_content)
@@ -184,6 +175,7 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
 
 # Float the footer container at the bottom of the page
 footer_container.float("bottom: 0rem;")
+
 
 
 
