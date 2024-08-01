@@ -1,4 +1,5 @@
 streamlit
 openai
-audio_recorder_streamlit
+python-dotenv
+audio-recorder-streamlit
 streamlit-float
