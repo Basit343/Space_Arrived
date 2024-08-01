@@ -49,8 +49,20 @@ def text_to_speech(input_text, voice):
     )
     logger.debug(f"Text-to-Speech response: {response}")
 
-    # Ensure we are correctly accessing the audio content
-    audio_content = response['data']  # Change this line based on the actual response structure
+    # Log the entire response to understand its structure
+    logger.debug(f"Full response: {response}")
+
+    # Attempt to access the audio content correctly
+    try:
+        audio_content = response['data']  # This line might need adjustment
+    except KeyError:
+        audio_content = response.get('audio_content')  # Adjust based on actual response
+
+    # If logging shows another structure, adjust accordingly
+    if not audio_content:
+        logger.error(f"Audio content not found in response: {response}")
+        raise ValueError("Audio content not found in the response")
+
     webm_file_path = "temp_audio_play.mp3"
     with open(webm_file_path, "wb") as f:
         f.write(audio_content)
@@ -172,7 +184,6 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
 
 # Float the footer container at the bottom of the page
 footer_container.float("bottom: 0rem;")
-
 
 
 
