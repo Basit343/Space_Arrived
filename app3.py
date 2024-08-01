@@ -50,18 +50,15 @@ def text_to_speech(input_text, voice):
     logger.debug(f"Text-to-Speech response: {response}")
 
     # Log the entire response to understand its structure
-    logger.debug(f"Full response: {response}")
+    st.write(f"Full response: {response}")
 
     # Attempt to access the audio content correctly
     try:
-        audio_content = response['data']  # This line might need adjustment
+        audio_content = response['audio_content']  # Adjust based on actual response
     except KeyError:
-        audio_content = response.get('audio_content')  # Adjust based on actual response
-
-    # If logging shows another structure, adjust accordingly
-    if not audio_content:
+        st.error("Audio content not found in the response. Please check the response structure.")
         logger.error(f"Audio content not found in response: {response}")
-        raise ValueError("Audio content not found in the response")
+        raise
 
     webm_file_path = "temp_audio_play.mp3"
     with open(webm_file_path, "wb") as f:
@@ -124,9 +121,12 @@ custom_prompt = st.text_area("Custom Prompt", value=default_custom_prompt)
 
 # Add a "Call" button
 if st.button("Call"):
-    initial_audio_path = text_to_speech(initial_message, voice)
-    st.session_state.initial_audio_path = initial_audio_path
-    st.session_state.messages.append({"role": "assistant", "content": initial_message})
+    try:
+        initial_audio_path = text_to_speech(initial_message, voice)
+        st.session_state.initial_audio_path = initial_audio_path
+        st.session_state.messages.append({"role": "assistant", "content": initial_message})
+    except Exception as e:
+        st.error(f"Error generating speech: {e}")
 
 # Play the initial greeting audio if it exists
 if "initial_audio_path" in st.session_state and st.session_state.initial_audio_path:
