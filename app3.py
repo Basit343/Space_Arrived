@@ -5,6 +5,7 @@ import os
 import base64
 from audio_recorder_streamlit import audio_recorder
 from streamlit_float import float_init
+from gtts import gTTS  # Import gTTS for text-to-speech
 
 # Load environment variables
 load_dotenv()
@@ -35,8 +36,10 @@ def speech_to_text(audio_data):
     return transcript['text']
 
 def text_to_speech(input_text, voice):
-    # Placeholder for text-to-speech implementation
-    return "temp_audio_play.mp3"
+    tts = gTTS(text=input_text, lang='en')
+    file_path = "temp_audio.mp3"
+    tts.save(file_path)
+    return file_path
 
 def autoplay_audio(file_path: str):
     with open(file_path, "rb") as f:
