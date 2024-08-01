@@ -64,7 +64,7 @@ if "messages" not in st.session_state:
 # Add inputs for initial message, voice selection, and custom prompt
 initial_message = st.text_input("Initial Message", value="How can I help you?")
 voice = st.selectbox("Select Voice", ["onyx", "echo", "alloy", "fable","shimmer","nova"])
-custom_prompt = st.text_area("Custom Prompt", value="""you can only respond in English. Hey {Lead Name}, this is Basit Ali calling, How are you doing today? I am good, thanks for asking....... so {lead name} the purpose of my call is in response to your recent FB Ads inquiry where you were seeking further information surrounding MetaVerse services…
+custom_prompt = st.text_area("Custom Prompt", value="""Hey {Lead Name}, this is Basit Ali calling, How are you doing today? I am good, thanks for asking....... so {lead name} the purpose of my call is in response to your recent FB Ads inquiry where you were seeking further information surrounding MetaVerse services…
 Do you remember booking the appointment?
 yes : Move on
 No: Remind them that they clicked on a FB advertisement and provided their information as they were interested in Metaverse and how it could help them.
