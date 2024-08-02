@@ -4,6 +4,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 import base64
 from audio_recorder_streamlit import audio_recorder
+import time
 
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
@@ -100,6 +101,10 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
+# Autorefresh every 5 seconds
+st_autorefresh(interval=5000, key="audio_recorder")
+
+# Check for new audio data periodically
 audio_bytes = audio_recorder()
 if audio_bytes:
     with st.spinner("Transcribing..."):
@@ -126,6 +131,141 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
 # Footer
 footer_text = "Reactive Space Agent © 2024"
 st.markdown(f"<div style='position:fixed;bottom:0;width:100%;text-align:center;'>{footer_text}</div>", unsafe_allow_html=True)
+
+
+
+
+
+
+# __________________________________________________________________________________________________________________________________________________________________
+# import streamlit as st
+# import os
+# from openai import OpenAI
+# from dotenv import load_dotenv
+# import base64
+# from audio_recorder_streamlit import audio_recorder
+
+# load_dotenv()
+# api_key = os.getenv("OPENAI_API_KEY")
+
+# client = OpenAI(api_key=api_key)
+
+# def get_answer(messages, custom_prompt):
+#     system_message = [{
+#         "role": "system", 
+#         "content": custom_prompt
+#     }]
+#     messages = system_message + messages
+#     response = client.chat.completions.create(
+#         model="gpt-3.5-turbo",
+#         temperature=0.7,
+#         timeout=5,
+#         messages=messages
+#     )
+#     return response.choices[0].message.content
+
+# def speech_to_text(audio_data):
+#     with open(audio_data, "rb") as audio_file:
+#         transcript = client.audio.transcriptions.create(
+#             model="whisper-1",
+#             response_format="text",
+#             file=audio_file
+#         )
+#     return transcript
+
+# def text_to_speech(input_text, voice):
+#     response = client.audio.speech.create(
+#         model="tts-1",
+#         voice=voice,
+#         input=input_text
+#     )
+#     webm_file_path = "temp_audio_play.mp3"
+#     with open(webm_file_path, "wb") as f:
+#         response.stream_to_file(webm_file_path)
+#     return webm_file_path
+
+# def autoplay_audio(file_path: str):
+#     with open(file_path, "rb") as f:
+#         data = f.read()
+#     b64 = base64.b64encode(data).decode("utf-8")
+#     md = f"""
+#     <audio autoplay>
+#     <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+#     </audio>
+#     """
+#     st.markdown(md, unsafe_allow_html=True)
+
+# # Streamlit interface
+# st.title("Reactive Space Agent")
+
+# if "messages" not in st.session_state:
+#     st.session_state.messages = []
+
+# # Add inputs for initial message, voice selection, and custom prompt
+# initial_message = st.text_input("Initial Message", value="How can I help you?")
+# voice = st.selectbox("Select Voice", ["onyx", "echo", "alloy", "fable","shimmer","nova"])
+# custom_prompt = st.text_area("Custom Prompt", value="""Hey {Lead Name}, this is Basit Ali calling, How are you doing today? I am good, thanks for asking....... so {lead name} the purpose of my call is in response to your recent FB Ads inquiry where you were seeking further information surrounding MetaVerse services…
+# Do you remember booking the appointment?
+# yes : Move on
+# No: Remind them that they clicked on a FB advertisement and provided their information as they were interested in Metaverse and how it could help them.
+# So (Name), once again my name is (name) and I represent MetaVerse specialist, Reactive Space. We develop and implement MetaVerse solutions globally. Based on your request do you have 15 mins now for a quick conversation so we can learn more about your requirements?
+# Yes: Move on
+# No: Seek a callback time or confirm they are still interested.
+# Awesome, As I said I just need to ask a few questions to see if we might be a good fit for you and then I will set up a service overview call with a team consultant.... So let's kick off.
+# Question 1:
+# Tell me a little more about yourself, your current role/industry and your motivations
+# For investing in MetaVerse?
+# Response 1:
+# Question 2:
+# If you were to set a goal or return you would like to achieve from investing in a MetaVerse solution over the next 12 months what number would you set for yourself or Business?
+# Response 2:
+# Note: Confirm the value back to them, example I want to sell 10 products at 10k per product over the next 12 months. This means they want to achieve 100k in sales over the first year.
+# Rebuttal to question 2:
+# It’s really important we have an understanding of your goals so we can help design the right solution to help you achieve that goal, so is there a revenue goal you have?""")
+
+# # Add a "Call" button
+# if st.button("Call"):
+#     initial_audio_path = text_to_speech(initial_message, voice)
+#     st.session_state.initial_audio_path = initial_audio_path
+#     st.session_state.messages.append({"role": "assistant", "content": initial_message})
+
+# # Play the initial greeting audio if it exists
+# if "initial_audio_path" in st.session_state and st.session_state.initial_audio_path:
+#     autoplay_audio(st.session_state.initial_audio_path)
+#     os.remove(st.session_state.initial_audio_path)
+#     del st.session_state.initial_audio_path
+
+# # Display previous messages
+# for message in st.session_state.messages:
+#     with st.chat_message(message["role"]):
+#         st.write(message["content"])
+
+# audio_bytes = audio_recorder()
+# if audio_bytes:
+#     with st.spinner("Transcribing..."):
+#         webm_file_path = "temp_audio.mp3"
+#         with open(webm_file_path, "wb") as f:
+#             f.write(audio_bytes)
+#         transcript = speech_to_text(webm_file_path)
+#         if transcript:
+#             st.session_state.messages.append({"role": "user", "content": transcript})
+#             with st.chat_message("user"):
+#                 st.write(transcript)
+#             os.remove(webm_file_path)
+
+# if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
+#     with st.chat_message("assistant"):
+#         with st.spinner("Thinking🤔..."):
+#             final_response = get_answer(st.session_state.messages, custom_prompt)
+#         with st.spinner("Generating audio response..."):
+#             audio_file = text_to_speech(final_response, voice)
+#             autoplay_audio(audio_file)
+#         st.write(final_response)
+#         st.session_state.messages.append({"role": "assistant", "content": final_response})
+
+# # Footer
+# footer_text = "Reactive Space Agent © 2024"
+# st.markdown(f"<div style='position:fixed;bottom:0;width:100%;text-align:center;'>{footer_text}</div>", unsafe_allow_html=True)
 
 
 
