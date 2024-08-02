@@ -3,8 +3,8 @@ import os
 from openai import OpenAI
 from dotenv import load_dotenv
 import base64
-import time
 import requests
+import json
 
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
@@ -121,7 +121,7 @@ navigator.mediaDevices.getUserMedia({ audio: true })
             reader.readAsDataURL(audioBlob);
             reader.onloadend = function() {
                 var base64data = reader.result;
-                fetch('http://localhost:8501/audio', {
+                fetch('/audio', {
                     method: 'POST',
                     body: JSON.stringify({ audio: base64data }),
                     headers: { 'Content-Type': 'application/json' }
@@ -138,7 +138,7 @@ navigator.mediaDevices.getUserMedia({ audio: true })
 </script>
 """, unsafe_allow_html=True)
 
-# Endpoint to handle audio data
+# Backend to handle audio data
 if st.experimental_get_query_params().get("audio"):
     audio_data = st.experimental_get_query_params()["audio"]
     with open("temp_audio.wav", "wb") as f:
@@ -165,14 +165,38 @@ footer_text = "Reactive Space Agent © 2024"
 st.markdown(f"<div style='position:fixed;bottom:0;width:100%;text-align:center;'>{footer_text}</div>", unsafe_allow_html=True)
 """)
 
-In this setup:
+### Backend Handling in Streamlit
 
-1. **JavaScript:** JavaScript is embedded in the Streamlit app to handle continuous audio recording.
-2. **Interval Recording:** The script records audio in 5-second intervals and sends it to the backend using a fetch request.
-3. **Audio Data Handling:** The backend processes the audio data and updates the session state with the transcript.
+To handle the audio data received from the JavaScript code, you will need to set up an endpoint in Streamlit that can receive POST requests. You can use the `st.experimental_singleton` to achieve this.
 
-Note: Make sure your Streamlit app is running on the specified port (e.g., 8501) and that you adjust the fetch URL accordingly. The continuous recording approach uses intervals, which you can adjust based on your requirements.
+```python
+import streamlit as st
+from flask import Flask, request, jsonify
+import threading
+import json
 
+app = Flask(__name__)
+
+@app.route('/audio', methods=['POST'])
+def handle_audio():
+    data = request.json
+    audio_data = data['audio']
+    with open("temp_audio.wav", "wb") as f:
+        f.write(base64.b64decode(audio_data.split(",")[1]))
+    transcript = speech_to_text("temp_audio.wav")
+    if transcript:
+        st.session_state.messages.append({"role": "user", "content": transcript})
+        with st.chat_message("user"):
+            st.write(transcript)
+        os.remove("temp_audio.wav")
+    return jsonify(success=True)
+
+def run_flask():
+    app.run(port=8501)
+
+if __name__ == '__main__':
+    threading.Thread(target=run_flask).start()
+    st.experimental_singleton(get_answer, speech_to_text, text_to_speech, autoplay_audio)
 
 
 
