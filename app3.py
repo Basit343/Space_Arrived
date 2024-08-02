@@ -3,8 +3,8 @@ import os
 from openai import OpenAI
 from dotenv import load_dotenv
 import base64
-from audio_recorder_streamlit import audio_recorder
 import time
+import requests
 
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
@@ -101,22 +101,54 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-# Autorefresh every 5 seconds
-st_autorefresh(interval=5000, key="audio_recorder")
+# Embed JavaScript for continuous recording
+st.markdown("""
+<script>
+var mediaRecorder;
+var audioChunks = [];
+navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(stream => {
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.start();
 
-# Check for new audio data periodically
-audio_bytes = audio_recorder()
-if audio_bytes:
-    with st.spinner("Transcribing..."):
-        webm_file_path = "temp_audio.mp3"
-        with open(webm_file_path, "wb") as f:
-            f.write(audio_bytes)
-        transcript = speech_to_text(webm_file_path)
-        if transcript:
-            st.session_state.messages.append({"role": "user", "content": transcript})
-            with st.chat_message("user"):
-                st.write(transcript)
-            os.remove(webm_file_path)
+        mediaRecorder.addEventListener("dataavailable", event => {
+            audioChunks.push(event.data);
+        });
+
+        mediaRecorder.addEventListener("stop", () => {
+            var audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+            var reader = new FileReader();
+            reader.readAsDataURL(audioBlob);
+            reader.onloadend = function() {
+                var base64data = reader.result;
+                fetch('http://localhost:8501/audio', {
+                    method: 'POST',
+                    body: JSON.stringify({ audio: base64data }),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            }
+            audioChunks = [];
+            mediaRecorder.start();
+        });
+
+        setInterval(() => {
+            mediaRecorder.stop();
+        }, 5000); // Record 5 seconds of audio at a time
+    });
+</script>
+""", unsafe_allow_html=True)
+
+# Endpoint to handle audio data
+if st.experimental_get_query_params().get("audio"):
+    audio_data = st.experimental_get_query_params()["audio"]
+    with open("temp_audio.wav", "wb") as f:
+        f.write(base64.b64decode(audio_data.split(",")[1]))
+    transcript = speech_to_text("temp_audio.wav")
+    if transcript:
+        st.session_state.messages.append({"role": "user", "content": transcript})
+        with st.chat_message("user"):
+            st.write(transcript)
+        os.remove("temp_audio.wav")
 
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
     with st.chat_message("assistant"):
@@ -131,6 +163,15 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
 # Footer
 footer_text = "Reactive Space Agent © 2024"
 st.markdown(f"<div style='position:fixed;bottom:0;width:100%;text-align:center;'>{footer_text}</div>", unsafe_allow_html=True)
+""")
+
+In this setup:
+
+1. **JavaScript:** JavaScript is embedded in the Streamlit app to handle continuous audio recording.
+2. **Interval Recording:** The script records audio in 5-second intervals and sends it to the backend using a fetch request.
+3. **Audio Data Handling:** The backend processes the audio data and updates the session state with the transcript.
+
+Note: Make sure your Streamlit app is running on the specified port (e.g., 8501) and that you adjust the fetch URL accordingly. The continuous recording approach uses intervals, which you can adjust based on your requirements.
 
 
 
